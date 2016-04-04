@@ -8,10 +8,32 @@
     <body>
 
     <script type="text/javascript">
+    var width = 1000;
+    var height = 600;
+
+    var snapX = 70;
+    var snapY = 70;
+
+    var tilePatterns = [
+        { width: 4, height: 1, pattern: "xxxx" },
+        { width: 3, height: 2, pattern: "xx  xx"},
+        { width: 3, height: 2, pattern: " xxxx "},
+        { width: 2, height: 2, pattern: "xxxx" },
+        { width: 3, height: 2, pattern: "xxxx  "},
+        { width: 3, height: 2, pattern: "xxx  x"},
+        { width: 3, height: 2, pattern: "xxx x "}
+    ];
+
+    var digits = {};
+    var rts = {};
+
+    var style = { font: "55px Courier", fill: "#ffffff", align: "center" };
+    var rotationDetails = {};
 
     window.onload = function() {
 
-        var game = new Phaser.Game(800, 600, Phaser.AUTO, '', { preload: preload, create: create });
+        var game = new Phaser.Game(width, height, Phaser.AUTO, '', { preload: preload,
+            create: create, update: update, render: render });
 
         function preload () {
 
@@ -20,12 +42,200 @@
         }
 
         function create () {
+            var logo = game.add.sprite(50, 50, 'logo');
+            logo.anchor.setTo(0, 0);
+            logo.inputEnabled = true;
+            //logo.input.enableDrag(true);
+            logo.events.onInputDown.add( jump, logo );
+            logo.scale.setTo( 0.5 );
 
-            var logo = game.add.sprite(game.world.centerX, game.world.centerY, 'logo');
-            logo.anchor.setTo(0.5, 0.5);
+            //create the textures for each number
+            for ( var digit = 0; digit < 10; digit++ ) {
+                rts[digit] = game.add.bitmapData(1,1, "digit_" + digit );
+                rts[digit].fill(0,0,0.5,0);
+                //rts[digit].text( 0, 0, "" + digit, style );
+                //rts[digit] = game.add.renderTexture(50, 100, 'digit-' + digit );
+                //textures.add( texture );
+                //var text = game.make.text( 0, 0, "" + digit, style );
+
+                //texture.renderXY( 0, 0, text, false);
+            } //
 
         }
 
+        function rotateTile(item,obj) {
+            console.log( "rotateTile: ", item, obj );
+
+            console.log( "rotationDetails: ", rotationDetails );
+            var canRotate = true;
+            var ctime = (new Date()).getTime();
+            if ( !rotationDetails.time ) rotationDetails.time = ctime;
+            if ( item !== rotationDetails.item ) {
+                console.log( "item mismatch" );
+                canRotate = false;
+            } //if
+            if ( ctime - rotationDetails.time > 750 ) {
+                console.log( "time mismatch" );
+                canRotate = false;
+            } //if
+            rotationDetails.item = item;
+            rotationDetails.time = ctime;
+
+            if ( !canRotate ) return;
+            console.log( "can rotate" );
+
+        }
+
+        function jump(event) {
+            console.log( "jump: ", event );
+
+            var tile = makeNumberTile( game.rnd.pick(tilePatterns) );
+            tile.x = width/2;
+            tile.y = 50;
+            //text.setTextBounds(width/2, 50, pattern.width*50, pattern.height*50 );
+
+
+
+        }
+
+        function startDrag(item) {
+            console.log( "starting drag" );
+            item.dragStartX = item.x;
+            item.dragStartY = item.y;
+        }
+
+        function fixLocation(item) {
+            var dx = item.x - item.dragStartX;
+            var dy = item.y - item.dragStartY;
+
+            if ( dx*dx + dy*dy < 10 ) {
+                rotateTile(item,dx);
+                return;
+            } //
+
+            var fixedX = snapX*(Math.round(item.x/snapX));
+            var fixedY = snapY*(Math.round(item.y/snapY));
+
+            if ( fixedX < 100 || fixedX > 900 ) {
+                fixedX = item.dragStartX;
+            } //
+
+            if ( fixedY < 100 || fixedY > 900 ) {
+                fixedY = item.dragStartY;
+            } //
+
+
+            item.x = fixedX;
+            item.y = fixedY;
+            console.log( "x-y: ", fixedX + "," + fixedY );
+        }
+
+
+
+        function update() {
+
+
+
+        } //
+
+
+
+        function render() {
+           // game.debug.inputInfo(32, 32);
+        }
+        function makeNumberTile(pattern) {
+
+
+            //var object = new Phaser.Rectangle(width/2, 5, 50, 50 );
+            //var object = game.add.rect( width/2, 50, "", style );
+            var object = game.add.sprite( width/2, 50, rts[0].texture );
+            object.alpha = 1.0;
+            //object.scale.setTo( 0.25 );
+
+            
+            
+            
+            //text.anchor.x = 0.5;
+            //text.anchor.y = 0.5;
+            object.inputEnabled = true;
+            object.input.enableDrag(false, true);
+            object.input.useHandCursor = true;
+            object.input.priorityID = 10;
+            object.events.onDragStart.add( startDrag );
+            object.events.onDragStop.add( fixLocation );
+
+            //object.event.add( rotateTile );
+            //text.events.onUp.add( rotateTile );
+            object.pattern = pattern;
+
+            //text.input.pixelPerfectOver = true;
+            //text.input.onDown.add( rotateTile, text );
+            //text.input.enableDrag(true);
+            //text.in = true;
+            //text.events.onInputDown.add(rotateTile, text );
+            //console.log( "text input: ", text.input );
+
+
+            var result = "";
+            console.log( "pattern: ", pattern );
+
+            //var colors  = [ game.rnd.frac(), game.rnd.frac(), game.rnd.frac() ];
+            //object.fill( colors[0], colors[1], colors[2], 1 );
+
+
+            style["backgroundColor"] = '#'+Math.floor(Math.random()*16777215/2).toString(16);
+
+
+            var bag = randomBag(1,9);
+
+            console.log( "bag: ", bag );
+
+            for ( var i = 0; i < pattern.pattern.length; i++ ) {
+                var c = pattern.pattern.charAt(i);
+                var yp = Math.floor(i/pattern.width)
+                var xp = i % pattern.width;
+                if ( c == ' ' ) continue;
+
+                var text = game.make.text( xp*snapX, yp*snapY, "" + bag.pop(), style );
+                text.xp = xp;
+                text.yp = yp;
+                //text.fill( colors[0], colors[1], colors[2], 1 );
+                object.addChild( text );
+
+                //result += ((c == 'x') ? (1 + Math.floor( Math.random()*9 )) : " ");
+
+            } //
+
+            object.backgroundColor = 0x3344DD;
+
+            //text.alpha = 1.0;
+            //object.addChild( text );
+            //var text = object.add.text( 0, 0, result, style );
+            //console.log( "result: ", text );
+            return object;
+        }
+
+        function randomBag(start,end) {
+            var result = [];
+
+            for ( var i = start; i <= end; i++ ) {
+                result.push(i);
+            } //
+
+            for ( var i = 1; i < (end-start)*3; i++ ) {
+                var i1 = rr( 0, end-start );
+                var i2 = rr( 0, end-start );
+                var tmp = result[i1];
+                result[i1] = result[i2];
+                result[i2] = tmp;
+            } //for
+
+            return result;
+        }
+
+        function rr(start,end) {
+            return start + Math.round(Math.random()*(end-start));
+        }
     };
 
     </script>
