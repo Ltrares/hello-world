@@ -8,11 +8,11 @@
     <body>
 
     <script type="text/javascript">
-    var width = 1000;
+    var width = 800;
     var height = 600;
 
-    var snapX = 70;
-    var snapY = 70;
+    var snapX = 50;
+    var snapY = 50;
 
     var tilePatterns = [
         { width: 4, height: 1, pattern: "xxxx" },
@@ -27,8 +27,9 @@
     var digits = {};
     var rts = {};
 
-    var style = { font: "55px Courier", fill: "#ffffff", align: "center" };
+    var style = { font: "40px Courier", fill: "#ffffff", align: "center", fontWeight: "bold" };
     var rotationDetails = {};
+    var grid = {};
 
     window.onload = function() {
 
@@ -47,10 +48,10 @@
             logo.inputEnabled = true;
             //logo.input.enableDrag(true);
             logo.events.onInputDown.add( jump, logo );
-            logo.scale.setTo( 0.5 );
+            logo.scale.setTo( 0.25 );
 
             //create the textures for each number
-            for ( var digit = 0; digit < 10; digit++ ) {
+            for ( var digit = 0; digit < 1; digit++ ) {
                 rts[digit] = game.add.bitmapData(1,1, "digit_" + digit );
                 rts[digit].fill(0,0,0.5,0);
                 //rts[digit].text( 0, 0, "" + digit, style );
@@ -64,25 +65,54 @@
         }
 
         function rotateTile(item,obj) {
-            console.log( "rotateTile: ", item, obj );
+            console.log("rotateTile: ", item, obj);
+            item.rotation -= Math.PI / 2.0;
+            for ( var childIndex in item.children ) {
+                var child = item.children[ childIndex ];
+                child.rotation += Math.PI / 2.0;
+            }
 
-            console.log( "rotationDetails: ", rotationDetails );
-            var canRotate = true;
-            var ctime = (new Date()).getTime();
-            if ( !rotationDetails.time ) rotationDetails.time = ctime;
-            if ( item !== rotationDetails.item ) {
-                console.log( "item mismatch" );
-                canRotate = false;
-            } //if
-            if ( ctime - rotationDetails.time > 750 ) {
-                console.log( "time mismatch" );
-                canRotate = false;
-            } //if
-            rotationDetails.item = item;
-            rotationDetails.time = ctime;
+//            console.log( "rotationDetails: ", rotationDetails );
+//            var canRotate = true;
+//            var ctime = (new Date()).getTime();
+//            if ( !rotationDetails.time ) rotationDetails.time = ctime;
+//            if ( item !== rotationDetails.item ) {
+//                console.log( "item mismatch" );
+//                canRotate = false;
+//            } //if
+//            if ( ctime - rotationDetails.time > 750 ) {
+//                console.log( "time mismatch" );
+//                canRotate = false;
+//            } //if
+//            rotationDetails.item = item;
+//            rotationDetails.time = ctime;
+//
+//            if ( !canRotate ) return;
+//            console.log( "can rotate" );
+//
+//
+//
+//            var width = item.pattern.width;
+//            item.pattern.width = item.pattern.height;
+//            item.pattern.height = width;
+//
+//            for ( var childIndex in item.children ) {
+//                var child = item.children[ childIndex ];
+//                var cpx = child.tilePos.x;
+//                var cpy = child.tilePos.y;
+//
+//                child.tilePos.y = cpx;
+//                child.tilePos.x = width -1 -cpy;
+//
+//                child.x = child.tilePos.x*snapX;
+//                child.y = child.tilePos.y*snapY;
+//
+//
+//
+//                //newArray[i][j] = array [width-1-j][i];
+//                console.log( "child: ", item.children[ childIndex]  );
+//            }
 
-            if ( !canRotate ) return;
-            console.log( "can rotate" );
 
         }
 
@@ -91,7 +121,7 @@
 
             var tile = makeNumberTile( game.rnd.pick(tilePatterns) );
             tile.x = width/2;
-            tile.y = 50;
+            tile.y = snapY;
             //text.setTextBounds(width/2, 50, pattern.width*50, pattern.height*50 );
 
 
@@ -108,28 +138,77 @@
             var dx = item.x - item.dragStartX;
             var dy = item.y - item.dragStartY;
 
-            if ( dx*dx + dy*dy < 10 ) {
+            if ( (dx*dx + dy*dy) < 10 ) {
+                item.x = snapX*(Math.round(item.dragStartX/snapX));
+                item.y = snapY*(Math.round(item.dragStartY/snapY));
+                //item.dragStartX = item.x;
+                //item.dragStartY = item.y;
                 rotateTile(item,dx);
                 return;
             } //
 
+            var xp = Math.round(item.x/snapX);
+            var yp = Math.round(item.y/snapY);
+
             var fixedX = snapX*(Math.round(item.x/snapX));
             var fixedY = snapY*(Math.round(item.y/snapY));
 
+            var sb = false;
             if ( fixedX < 100 || fixedX > 900 ) {
-                fixedX = item.dragStartX;
+                sb = true;
+                //fixedX = item.dragStartX;
             } //
 
             if ( fixedY < 100 || fixedY > 900 ) {
-                fixedY = item.dragStartY;
+                sb = true;
+                //fixedY = item.dragStartY;
             } //
 
+
+            if ( checkCollision( item, xp, yp ) ) sb = true;
+
+
+            if ( sb ) {
+                fixedX = item.dragStartX;
+                fixedY = item.dragStartY;
+            } else {
+                updateGrid( item, xp, yp );
+                for ( var childIndex in item.children ) {
+                    var child = item.children[childIndex];
+                    var cxp = xp + child.tilePos.x;
+                    var cyp = yp + child.tilePos.y;
+                    if ( !grid[cxp] ) grid[cxp] = {};
+                    if ( !grid[cxp][cyp] ) grid[cxp][cyp] = {};
+                    grid[cxp][cyp] = child;
+                } //
+
+            }
 
             item.x = fixedX;
             item.y = fixedY;
             console.log( "x-y: ", fixedX + "," + fixedY );
         }
 
+
+        function checkCollision( item, x, y, rot ) {
+            var sb = false;
+            for ( var childIndex in item.children ) {
+                var child = item.children[childIndex];
+                var cxp = xp + child.tilePos.x;
+                var cyp = yp + child.tilePos.y;
+
+
+                if ( grid[cxp]  && grid[cxp][cyp] != null ) {
+                    if ( grid[cxp][cyp].parent !== item ) {
+                        console.log( "occupied: ", cxp, cyp );
+                        sb = true;
+                    }
+                } //
+
+            } //
+            return sb;
+
+        }
 
 
         function update() {
@@ -164,9 +243,12 @@
             object.events.onDragStart.add( startDrag );
             object.events.onDragStop.add( fixLocation );
 
+            object.anchor.x = 0.0;
+            object.anchor.y = 0.0;
             //object.event.add( rotateTile );
             //text.events.onUp.add( rotateTile );
             object.pattern = pattern;
+
 
             //text.input.pixelPerfectOver = true;
             //text.input.onDown.add( rotateTile, text );
@@ -192,15 +274,22 @@
 
             for ( var i = 0; i < pattern.pattern.length; i++ ) {
                 var c = pattern.pattern.charAt(i);
-                var yp = Math.floor(i/pattern.width)
-                var xp = i % pattern.width;
+                var yp = Math.floor(i/pattern.width) - Math.floor(pattern.width/2);
+                var xp = i % pattern.width - Math.floor(pattern.height/2);
                 if ( c == ' ' ) continue;
 
                 var text = game.make.text( xp*snapX, yp*snapY, "" + bag.pop(), style );
-                text.xp = xp;
-                text.yp = yp;
+                text.tilePos = {};
+                text.tilePos.x = xp;
+                text.tilePos.y = yp;
+                text.parent = object;
+                text.anchor.x = 0.5;
+                text.anchor.y = 0.5;
                 //text.fill( colors[0], colors[1], colors[2], 1 );
                 object.addChild( text );
+
+                //object.anchor.x += xp/2;
+                //object.anchor.y += yp/2;
 
                 //result += ((c == 'x') ? (1 + Math.floor( Math.random()*9 )) : " ");
 
