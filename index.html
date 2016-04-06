@@ -30,6 +30,7 @@
     var style = { font: "40px Courier", fill: "#ffffff", align: "center", fontWeight: "bold" };
     var rotationDetails = {};
     var grid = {};
+    var history = [];
 
     window.onload = function() {
 
@@ -50,28 +51,37 @@
             logo.events.onInputDown.add( jump, logo );
             logo.scale.setTo( 0.25 );
 
-            //create the textures for each number
-            for ( var digit = 0; digit < 1; digit++ ) {
-                rts[digit] = game.add.bitmapData(1,1, "digit_" + digit );
-                rts[digit].fill(0,0,0.5,0);
-                //rts[digit].text( 0, 0, "" + digit, style );
-                //rts[digit] = game.add.renderTexture(50, 100, 'digit-' + digit );
-                //textures.add( texture );
-                //var text = game.make.text( 0, 0, "" + digit, style );
 
-                //texture.renderXY( 0, 0, text, false);
-            } //
+            var data = [ ' 333 ', ' 777 ', 'E333E', ' 333 ', ' 3 3 ' ];
+            game.create.texture('bob', data);
+
+
 
         }
 
         function rotateTile(item,obj) {
             console.log("rotateTile: ", item, obj);
+
             item.rotation -= Math.PI / 2.0;
+
+            if ( checkCollision(item, item.x, item.y ) ) {
+                item.rotation += Math.PI / 2.0;
+                return;
+            } //
+
+            clearGrid( item );
+
+            var tmp = item.pattern.width;
+            item.pattern.width = item.pattern.height;
+            item.pattern.height = tmp;
+
             for ( var childIndex in item.children ) {
+
                 var child = item.children[ childIndex ];
                 child.rotation += Math.PI / 2.0;
             }
 
+            updateGrid(item);
 //            console.log( "rotationDetails: ", rotationDetails );
 //            var canRotate = true;
 //            var ctime = (new Date()).getTime();
@@ -165,56 +175,103 @@
             } //
 
 
-            if ( checkCollision( item, xp, yp ) ) sb = true;
+            if ( checkCollision( item, fixedX, fixedY ) ) sb = true;
 
 
             if ( sb ) {
                 fixedX = item.dragStartX;
                 fixedY = item.dragStartY;
-            } else {
-                updateGrid( item, xp, yp );
-                for ( var childIndex in item.children ) {
-                    var child = item.children[childIndex];
-                    var cxp = xp + child.tilePos.x;
-                    var cyp = yp + child.tilePos.y;
-                    if ( !grid[cxp] ) grid[cxp] = {};
-                    if ( !grid[cxp][cyp] ) grid[cxp][cyp] = {};
-                    grid[cxp][cyp] = child;
-                } //
+            } //
 
-            }
-
+            if ( !sb ) clearGrid(item);
             item.x = fixedX;
             item.y = fixedY;
+            if ( !sb ) updateGrid(item);
             console.log( "x-y: ", fixedX + "," + fixedY );
         }
 
 
-        function checkCollision( item, x, y, rot ) {
+        function checkCollision( item, xp, yp ) {
+            xp = Math.round(xp/snapX);
+            yp = Math.round(yp/snapY);
             var sb = false;
             for ( var childIndex in item.children ) {
                 var child = item.children[childIndex];
-                var cxp = xp + child.tilePos.x;
-                var cyp = yp + child.tilePos.y;
+                var cxp = xp + Math.round((child.worldPosition.x - item.worldPosition.x)/snapX); //child.tilePos.x;
+                var cyp = yp + Math.round((child.worldPosition.y - item.worldPosition.y)/snapY); //child.tilePos.y;
 
+//                if ( rotWidth ) {
+//                    var tmp = cyp;
+//                    cyp = cxp;
+//                    cxp = item.rotWidth-1-tmp;
+//                } //if
 
                 if ( grid[cxp]  && grid[cxp][cyp] != null ) {
-                    if ( grid[cxp][cyp].parent !== item ) {
+                    if ( grid[cxp][cyp].tile && grid[cxp][cyp].tile.parent !== item ) {
                         console.log( "occupied: ", cxp, cyp );
                         sb = true;
                     }
-                } //
+                }
 
-            } //
+            }
             return sb;
 
         }
 
+        function updateGrid( item ) {
+            var xp = Math.round(item.x/snapX);
+            var yp = Math.round(item.y/snapY);
+
+            for (var childIndex in item.children) {
+                var child = item.children[childIndex];
+                var cxp = xp + Math.round((child.worldPosition.x - item.worldPosition.x)/snapX); //child.tilePos.x;
+                var cyp = yp + Math.round((child.worldPosition.y - item.worldPosition.y)/snapY); //child.tilePos.y;
+                if (!grid[cxp]) grid[cxp] = {};
+                if (!grid[cxp][cyp]) grid[cxp][cyp] = {};
+                grid[cxp][cyp].tile = child;
+                console.log( "grid updated: ", cxp, cyp );
+            } //
+        } //
+
+        function clearGrid(item) {
+            console.log( "clear grid:", item );
+            var xp = Math.round(item.x/snapX);
+            var yp = Math.round(item.y/snapY);
+
+            for (var childIndex in item.children) {
+                var child = item.children[childIndex];
+                console.log( "clearing: ", child );
+                var cxp = xp + Math.round((child.worldPosition.x - item.worldPosition.x)/snapX); //child.tilePos.x;
+                var cyp = yp + Math.round((child.worldPosition.y - item.worldPosition.y)/snapY); //child.tilePos.y;
+                if (!grid[cxp]) continue;
+                if (!grid[cxp][cyp]) continue;
+                grid[cxp][cyp].tile = null;
+                console.log( "grid cleared: ", cxp, cyp );
+            } //
+
+        }
+
+
+
 
         function update() {
+            for ( var i = -1; i < 11; i++ ) {
+                for ( var j = -1; j < 11; j++ ) {
+                    var gp = undefined;
+                    if ( !grid[i] ) grid[i] = {};
+                    if ( !grid[i][j] ) grid[i][j] = {};
 
-
-
+                    if ( gp && !gp.display ) {
+                        console.log( "adding a grid display: ", i, j );
+                        gp.display = game.add.text( i*snapX, j*snapY, "-", style );
+                        gp.display.priority = 0;
+                    } //if
+                    if ( gp ) {
+                        if (gp.item) gp.display.text = gp.item.text;
+                        else gp.display.text = ".";
+                    } //if
+                } //
+            } //
         } //
 
 
@@ -227,7 +284,7 @@
 
             //var object = new Phaser.Rectangle(width/2, 5, 50, 50 );
             //var object = game.add.rect( width/2, 50, "", style );
-            var object = game.add.sprite( width/2, 50, rts[0].texture );
+            var object = game.add.sprite( width/2, 50, 'bob' );
             object.alpha = 1.0;
             //object.scale.setTo( 0.25 );
 
@@ -283,8 +340,10 @@
                 text.tilePos.x = xp;
                 text.tilePos.y = yp;
                 text.parent = object;
-                text.anchor.x = 0.5;
-                text.anchor.y = 0.5;
+                text.priority = 10;
+                //text.events.onDown.add = function(item){ item.parent.clicked = item; };
+                //text.anchor.x = 0.5;
+                //text.anchor.y = 0.5;
                 //text.fill( colors[0], colors[1], colors[2], 1 );
                 object.addChild( text );
 
