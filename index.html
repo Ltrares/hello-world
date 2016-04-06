@@ -31,6 +31,8 @@
     var rotationDetails = {};
     var grid = {};
     var tiles = [];
+    var gridBounds = [ 3, 3, 19, 13 ];
+    var scoreText;
 
     window.onload = function() {
 
@@ -50,9 +52,10 @@
             logo.events.onInputDown.add( jump, logo );
             logo.scale.setTo( 0.25 );
 
-            var data = [ '0' ]; //[ ' 333 ', ' 777 ', 'E333E', ' 333 ', ' 3 3 ' ];
+            var data = [ '7' ]; //[ ' 333 ', ' 777 ', 'E333E', ' 333 ', ' 3 3 ' ];
             game.create.texture('bob', data);
 
+            scoreText = game.add.text( width*0.7, 40, "0", style );
         }
 
 
@@ -77,8 +80,6 @@
         }
 
         function jump(event) {
-            console.log( "jump: ", event );
-
             var tile = makeNumberTile( game.rnd.pick(tilePatterns) );
             tile.x = width/2;
             tile.y = snapY;
@@ -86,7 +87,6 @@
         }
 
         function startDrag(item) {
-            console.log( "starting drag" );
             item.dragStartX = item.x;
             item.dragStartY = item.y;
         }
@@ -109,11 +109,11 @@
             var fixedY = snapY*(Math.round(item.y/snapY));
 
             var sb = false;
-            if ( fixedX < 100 || fixedX > 900 ) {
+            if ( fixedX/snapX < gridBounds[0] || fixedX/snapX > gridBounds[2] ) {
                 sb = true;
             } //
 
-            if ( fixedY < 100 || fixedY > 900 ) {
+            if ( fixedY/snapY < gridBounds[1] || fixedY/snapY > gridBounds[3] ) {
                 sb = true;
             } //
 
@@ -170,14 +170,12 @@
         } //
 
         function clearGrid(item ) {
-            console.log( "clearing grid: ", grid );
             for ( var gxi in grid ) {
                 for ( var gyi in grid[gxi] ) {
                     var gp = grid[gxi][gyi];
                     if ( !gp || !gp.tile || !gp.tile.parent ) continue;
 
                     if ( gp.tile.parent === item) {
-                        console.log( "clearing: ", gxi, gyi, gp.tile );
                         gp.tile = undefined;
                     } //if
                 } //for
@@ -189,8 +187,9 @@
 
 
         function update() {
-            for ( var i = 1; i < 16; i++ ) {
-                for ( var j = 1; j < 12; j++ ) {
+            var score = 0;
+            for ( var i = gridBounds[0]; i < gridBounds[2]; i++ ) {
+                for ( var j = gridBounds[1]; j < gridBounds[3]; j++ ) {
                     var gp = undefined;
                     if ( !grid[i] ) grid[i] = {};
                     if ( !grid[i][j] ) grid[i][j] = {};
@@ -201,13 +200,75 @@
                         gp.display.priority = 0;
                     } //if
                     if ( gp ) {
-                        if (gp.tile) gp.display.text = gp.tile.text;
+                        gp.score = 0.0;
+                        if (gp.tile) {
+                            gp.display.text = gp.tile.text;
+                            gp.score = scoreTile( i, j, gp.tile );
+                            gp.display.backgroundColor =
+                            score += gp.score;
+                        } //
                         else gp.display.text = ".";
                     } //if
                 } //
             } //
+            if ( scoreText ) scoreText.text = score;
         } //
 
+        function scoreTile( x, y, tile ) {
+
+            if ( x < gridBounds[0] || x > gridBounds[2] ) return 0;
+
+            if ( y < gridBounds[1] || y > gridBounds[3] ) return 0;
+
+            var score = 0;
+            //check the row
+            for ( var i = -8; i <= 8; i++ ) {
+                var cx = x + i;
+
+                if ( cx < gridBounds[0] || cx > gridBounds[2] ) continue;
+
+                if ( i == 0 || !grid[cx]  || !grid[cx][y] || !grid[cx][y].tile ) continue;
+
+                ds = ( grid[cx][y].tile.text == tile.text ) ? -(10 - Math.abs(i)) : 1;
+
+                score += ds; //**Math.sign(ds);
+
+            } //
+
+            //check the column
+            for ( var i = -8; i <= 8; i++ ) {
+                var cy = y + i;
+
+                if ( cy < gridBounds[1] || cy > gridBounds[3] ) continue;
+
+                if ( i == 0 || !grid[x]  || !grid[x][cy] || !grid[x][cy].tile ) continue;
+
+                ds = ( grid[x][cy].tile.text == tile.text ) ? -(10 - Math.abs(i)) : 1;
+
+                score += ds; //*ds*Math.sign(ds);
+
+            } //
+
+            //check the cell
+            for ( var i = -2; i <= 2; i++ ) {
+                var cx = x + i;
+                if ( cx < gridBounds[0] || cx > gridBounds[2] ) continue;
+                for ( var j = -2; j <= 2; j++ ) {
+                    if ( i == 0 && j == 0 ) continue;
+                    var cy = y + j;
+                    if ( cy < gridBounds[1] || cy > gridBounds[3] ) continue;
+                    if ( !grid[cx]  || !grid[cx][cy] || !grid[cx][cy].tile ) continue;
+
+                    var distance = Math.sqrt( i*i + j*j );
+
+                    var ds = ( grid[cx][cy].tile.text == tile.text ) ? -2*(10-distance) : 2;
+
+                    score += Math.round(ds);
+                }
+            }
+
+            return score;
+        } //
 
 
         function render() {
@@ -246,7 +307,7 @@
             var result = "";
 
 
-            style["backgroundColor"] = '#'+Math.floor(Math.random()*16777215/4).toString(16);
+            style["backgroundColor"] = createDarkColor(); //'#'+Math.floor(Math.random()*16777215/4).toString(16);
 
 
             var bag = randomBag(1,9);
@@ -298,6 +359,17 @@
 
         function rr(start,end) {
             return start + Math.round(Math.random()*(end-start));
+        }
+
+        function createDarkColor() {
+            var cc = "#";
+
+            for ( var i = 0; i < 6; i++ ) {
+
+                var ce = 2 + Math.round(Math.random()*6);
+                cc += ce;
+            } //
+            return cc;
         }
     };
 
