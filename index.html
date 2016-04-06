@@ -11,8 +11,8 @@
     var width = 800;
     var height = 600;
 
-    var snapX = 50;
-    var snapY = 50;
+    var snapX = 40;
+    var snapY = 40;
 
     var tilePatterns = [
         { width: 4, height: 1, pattern: "xxxx" },
@@ -27,10 +27,10 @@
     var digits = {};
     var rts = {};
 
-    var style = { font: "40px Courier", fill: "#ffffff", align: "center", fontWeight: "bold" };
+    var style = { font: "28px Arial", fill: "#ffffff", align: "center", fontWeight: "bold" };
     var rotationDetails = {};
     var grid = {};
-    var history = [];
+    var tiles = [];
 
     window.onload = function() {
 
@@ -47,82 +47,32 @@
             var logo = game.add.sprite(50, 50, 'logo');
             logo.anchor.setTo(0, 0);
             logo.inputEnabled = true;
-            //logo.input.enableDrag(true);
             logo.events.onInputDown.add( jump, logo );
             logo.scale.setTo( 0.25 );
 
-
-            var data = [ ' 333 ', ' 777 ', 'E333E', ' 333 ', ' 3 3 ' ];
+            var data = [ '0' ]; //[ ' 333 ', ' 777 ', 'E333E', ' 333 ', ' 3 3 ' ];
             game.create.texture('bob', data);
-
-
 
         }
 
+
         function rotateTile(item,obj) {
             console.log("rotateTile: ", item, obj);
-
-            item.rotation -= Math.PI / 2.0;
-
+            item.angle -= 90;
             if ( checkCollision(item, item.x, item.y ) ) {
-                item.rotation += Math.PI / 2.0;
+                item.angle += 90;
                 return;
             } //
 
             clearGrid( item );
 
-            var tmp = item.pattern.width;
-            item.pattern.width = item.pattern.height;
-            item.pattern.height = tmp;
-
             for ( var childIndex in item.children ) {
 
                 var child = item.children[ childIndex ];
-                child.rotation += Math.PI / 2.0;
+                child.angle += 90;
             }
 
             updateGrid(item);
-//            console.log( "rotationDetails: ", rotationDetails );
-//            var canRotate = true;
-//            var ctime = (new Date()).getTime();
-//            if ( !rotationDetails.time ) rotationDetails.time = ctime;
-//            if ( item !== rotationDetails.item ) {
-//                console.log( "item mismatch" );
-//                canRotate = false;
-//            } //if
-//            if ( ctime - rotationDetails.time > 750 ) {
-//                console.log( "time mismatch" );
-//                canRotate = false;
-//            } //if
-//            rotationDetails.item = item;
-//            rotationDetails.time = ctime;
-//
-//            if ( !canRotate ) return;
-//            console.log( "can rotate" );
-//
-//
-//
-//            var width = item.pattern.width;
-//            item.pattern.width = item.pattern.height;
-//            item.pattern.height = width;
-//
-//            for ( var childIndex in item.children ) {
-//                var child = item.children[ childIndex ];
-//                var cpx = child.tilePos.x;
-//                var cpy = child.tilePos.y;
-//
-//                child.tilePos.y = cpx;
-//                child.tilePos.x = width -1 -cpy;
-//
-//                child.x = child.tilePos.x*snapX;
-//                child.y = child.tilePos.y*snapY;
-//
-//
-//
-//                //newArray[i][j] = array [width-1-j][i];
-//                console.log( "child: ", item.children[ childIndex]  );
-//            }
-
 
         }
 
@@ -132,9 +82,6 @@
             var tile = makeNumberTile( game.rnd.pick(tilePatterns) );
             tile.x = width/2;
             tile.y = snapY;
-            //text.setTextBounds(width/2, 50, pattern.width*50, pattern.height*50 );
-
-
 
         }
 
@@ -151,8 +98,6 @@
             if ( (dx*dx + dy*dy) < 10 ) {
                 item.x = snapX*(Math.round(item.dragStartX/snapX));
                 item.y = snapY*(Math.round(item.dragStartY/snapY));
-                //item.dragStartX = item.x;
-                //item.dragStartY = item.y;
                 rotateTile(item,dx);
                 return;
             } //
@@ -166,54 +111,44 @@
             var sb = false;
             if ( fixedX < 100 || fixedX > 900 ) {
                 sb = true;
-                //fixedX = item.dragStartX;
             } //
 
             if ( fixedY < 100 || fixedY > 900 ) {
                 sb = true;
-                //fixedY = item.dragStartY;
             } //
 
-
-            if ( checkCollision( item, fixedX, fixedY ) ) sb = true;
-
+            if ( !sb && checkCollision( item, fixedX, fixedY ) ) sb = true;
 
             if ( sb ) {
                 fixedX = item.dragStartX;
                 fixedY = item.dragStartY;
             } //
 
-            if ( !sb ) clearGrid(item);
+            if ( !sb ) clearGrid(item );
             item.x = fixedX;
             item.y = fixedY;
             if ( !sb ) updateGrid(item);
             console.log( "x-y: ", fixedX + "," + fixedY );
         }
 
-
         function checkCollision( item, xp, yp ) {
             xp = Math.round(xp/snapX);
             yp = Math.round(yp/snapY);
             var sb = false;
+            var matrix = new Phaser.Matrix( Math.cos(item.rotation), Math.sin(item.rotation),
+                    -Math.sin(item.rotation), Math.cos(item.rotation) );
             for ( var childIndex in item.children ) {
                 var child = item.children[childIndex];
-                var cxp = xp + Math.round((child.worldPosition.x - item.worldPosition.x)/snapX); //child.tilePos.x;
-                var cyp = yp + Math.round((child.worldPosition.y - item.worldPosition.y)/snapY); //child.tilePos.y;
-
-//                if ( rotWidth ) {
-//                    var tmp = cyp;
-//                    cyp = cxp;
-//                    cxp = item.rotWidth-1-tmp;
-//                } //if
+                var transformedChildPosition = matrix.apply( child.position );
+                var cxp = xp + Math.round((transformedChildPosition.x)/snapX); //child.tilePos.x;
+                var cyp = yp + Math.round((transformedChildPosition.y)/snapY); //child.tilePos.y;
 
                 if ( grid[cxp]  && grid[cxp][cyp] != null ) {
                     if ( grid[cxp][cyp].tile && grid[cxp][cyp].tile.parent !== item ) {
-                        console.log( "occupied: ", cxp, cyp );
                         sb = true;
                     }
                 }
-
-            }
+            } //for childIndex
             return sb;
 
         }
@@ -221,33 +156,32 @@
         function updateGrid( item ) {
             var xp = Math.round(item.x/snapX);
             var yp = Math.round(item.y/snapY);
-
+            var matrix = new Phaser.Matrix( Math.cos(item.rotation), Math.sin(item.rotation),
+                    -Math.sin(item.rotation), Math.cos(item.rotation) );
             for (var childIndex in item.children) {
                 var child = item.children[childIndex];
-                var cxp = xp + Math.round((child.worldPosition.x - item.worldPosition.x)/snapX); //child.tilePos.x;
-                var cyp = yp + Math.round((child.worldPosition.y - item.worldPosition.y)/snapY); //child.tilePos.y;
+                var transformedChildPosition = matrix.apply( child.position );
+                var cxp = xp + Math.round((transformedChildPosition.x)/snapX); //child.tilePos.x;
+                var cyp = yp + Math.round((transformedChildPosition.y)/snapY); //child.tilePos.y;
                 if (!grid[cxp]) grid[cxp] = {};
                 if (!grid[cxp][cyp]) grid[cxp][cyp] = {};
                 grid[cxp][cyp].tile = child;
-                console.log( "grid updated: ", cxp, cyp );
             } //
         } //
 
-        function clearGrid(item) {
-            console.log( "clear grid:", item );
-            var xp = Math.round(item.x/snapX);
-            var yp = Math.round(item.y/snapY);
+        function clearGrid(item ) {
+            console.log( "clearing grid: ", grid );
+            for ( var gxi in grid ) {
+                for ( var gyi in grid[gxi] ) {
+                    var gp = grid[gxi][gyi];
+                    if ( !gp || !gp.tile || !gp.tile.parent ) continue;
 
-            for (var childIndex in item.children) {
-                var child = item.children[childIndex];
-                console.log( "clearing: ", child );
-                var cxp = xp + Math.round((child.worldPosition.x - item.worldPosition.x)/snapX); //child.tilePos.x;
-                var cyp = yp + Math.round((child.worldPosition.y - item.worldPosition.y)/snapY); //child.tilePos.y;
-                if (!grid[cxp]) continue;
-                if (!grid[cxp][cyp]) continue;
-                grid[cxp][cyp].tile = null;
-                console.log( "grid cleared: ", cxp, cyp );
-            } //
+                    if ( gp.tile.parent === item) {
+                        console.log( "clearing: ", gxi, gyi, gp.tile );
+                        gp.tile = undefined;
+                    } //if
+                } //for
+            } //for
 
         }
 
@@ -255,19 +189,19 @@
 
 
         function update() {
-            for ( var i = -1; i < 11; i++ ) {
-                for ( var j = -1; j < 11; j++ ) {
+            for ( var i = 1; i < 16; i++ ) {
+                for ( var j = 1; j < 12; j++ ) {
                     var gp = undefined;
                     if ( !grid[i] ) grid[i] = {};
                     if ( !grid[i][j] ) grid[i][j] = {};
+                    gp = grid[i][j];
 
                     if ( gp && !gp.display ) {
-                        console.log( "adding a grid display: ", i, j );
                         gp.display = game.add.text( i*snapX, j*snapY, "-", style );
                         gp.display.priority = 0;
                     } //if
                     if ( gp ) {
-                        if (gp.item) gp.display.text = gp.item.text;
+                        if (gp.tile) gp.display.text = gp.tile.text;
                         else gp.display.text = ".";
                     } //if
                 } //
@@ -304,25 +238,15 @@
             object.anchor.y = 0.0;
             //object.event.add( rotateTile );
             //text.events.onUp.add( rotateTile );
-            object.pattern = pattern;
 
 
-            //text.input.pixelPerfectOver = true;
-            //text.input.onDown.add( rotateTile, text );
-            //text.input.enableDrag(true);
-            //text.in = true;
-            //text.events.onInputDown.add(rotateTile, text );
-            //console.log( "text input: ", text.input );
+
 
 
             var result = "";
-            console.log( "pattern: ", pattern );
-
-            //var colors  = [ game.rnd.frac(), game.rnd.frac(), game.rnd.frac() ];
-            //object.fill( colors[0], colors[1], colors[2], 1 );
 
 
-            style["backgroundColor"] = '#'+Math.floor(Math.random()*16777215/2).toString(16);
+            style["backgroundColor"] = '#'+Math.floor(Math.random()*16777215/4).toString(16);
 
 
             var bag = randomBag(1,9);
@@ -331,8 +255,8 @@
 
             for ( var i = 0; i < pattern.pattern.length; i++ ) {
                 var c = pattern.pattern.charAt(i);
-                var yp = Math.floor(i/pattern.width) - Math.floor(pattern.width/2);
-                var xp = i % pattern.width - Math.floor(pattern.height/2);
+                var yp = Math.floor(i/pattern.width); // - Math.floor(pattern.width/2);
+                var xp = i % pattern.width; // - Math.floor(pattern.height/2);
                 if ( c == ' ' ) continue;
 
                 var text = game.make.text( xp*snapX, yp*snapY, "" + bag.pop(), style );
@@ -341,25 +265,16 @@
                 text.tilePos.y = yp;
                 text.parent = object;
                 text.priority = 10;
-                //text.events.onDown.add = function(item){ item.parent.clicked = item; };
-                //text.anchor.x = 0.5;
-                //text.anchor.y = 0.5;
-                //text.fill( colors[0], colors[1], colors[2], 1 );
+                text.anchor.x = 0.0;
+                text.anchor.y = 0.0;
                 object.addChild( text );
 
-                //object.anchor.x += xp/2;
-                //object.anchor.y += yp/2;
 
-                //result += ((c == 'x') ? (1 + Math.floor( Math.random()*9 )) : " ");
 
             } //
 
             object.backgroundColor = 0x3344DD;
 
-            //text.alpha = 1.0;
-            //object.addChild( text );
-            //var text = object.add.text( 0, 0, result, style );
-            //console.log( "result: ", text );
             return object;
         }
 
